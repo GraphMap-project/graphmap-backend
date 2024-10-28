@@ -2,7 +2,7 @@
 
 # Technology Stack
 
-[![My Skills](https://skillicons.dev/icons?i=py)](https://skillicons.dev)
+[![My Skills](https://skillicons.dev/icons?i=py,fastapi)](https://skillicons.dev)
 
 To run: 
 - create virtual environment
@@ -18,4 +18,4 @@ venv/Scripts/activate
 ```
 pip install -r requirements.txt
 ```
-- type ``python graph.py`` to execute file
+- type ``uvicorn main:app --reload`` to execute file
