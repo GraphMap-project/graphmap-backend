@@ -1,10 +1,10 @@
 import json
 import os
+from typing import List
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import osmnx as ox
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -20,16 +20,14 @@ graphml_file = "ukraine_graph.graphml"
 
 
 class RouteRequest(BaseModel):
-    start_lat: float
-    start_lon: float
-    end_lat: float
-    end_lon: float
+    start_point: List[float]
+    end_point: List[float]
 
 
 @app.post("/shortest_path")
 def get_shortest_path(request: RouteRequest):
-    start_point = (request.start_lat, request.start_lon)
-    end_point = (request.end_lat, request.end_lon)
+    start_point = request.start_point
+    end_point = request.end_point
 
     if os.path.exists(graphml_file):
         G = ox.load_graphml(graphml_file)
@@ -45,11 +43,11 @@ def get_shortest_path(request: RouteRequest):
 
         if nx.has_path(G, start_node, end_node):
             # Находим кратчайший путь между двумя узлами с использованием алгоритма Дейкстры
-            shortest_path = nx.shortest_path(
-                G, start_node, end_node, weight="length")
+            shortest_path = nx.shortest_path(G, start_node, end_node, weight="length")
 
-            route_coords = [(G.nodes[node]["y"], G.nodes[node]["x"])
-                            for node in shortest_path]
+            route_coords = [
+                (G.nodes[node]["y"], G.nodes[node]["x"]) for node in shortest_path
+            ]
 
             route_data = {"route": route_coords}
 
@@ -61,7 +59,9 @@ def get_shortest_path(request: RouteRequest):
             return route_data
         else:
             raise HTTPException(
-                status_code=404, detail="Невозможно проложить маршрут между двумя точками.")
+                status_code=404,
+                detail="Невозможно проложить маршрут между двумя точками.",
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
