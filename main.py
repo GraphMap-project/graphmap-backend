@@ -1,11 +1,21 @@
 import networkx as nx
 import osmnx as ox
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from schemas.route_request import RouteRequest
 from utils.utils import build_shortest_path, load_graph
 
-app = FastAPI()
+app = FastAPI(title="Graphmap Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 ox.config(log_console=True, use_cache=True)
 
 custom_filter = (
