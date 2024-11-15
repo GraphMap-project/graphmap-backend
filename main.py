@@ -1,8 +1,11 @@
+from collections import deque
+
 import networkx as nx
 import numpy as np
 import osmnx as ox
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from geopy.distance import geodesic
 
 from schemas.route_request import RouteRequest
 from utils.utils import build_shortest_path, load_graph
@@ -63,33 +66,63 @@ def get_shortest_path(request: RouteRequest):
 
 @app.post("/distance_matrix")
 def get_distance_matrix(request: RouteRequest):
+    # TODO: создать подграф из существующего графа и использовать его
+
     G = load_graph(graphml_file, custom_filter)
 
-    start_point = request.start_point
-    end_point = request.end_point
+    # Объединяем все точки в один список (начальная, промежуточные, конечная)
+    points = [request.start_point] + request.intermediate_points + [request.end_point]
 
     try:
-        # Находим ближайшие узлы графа к этим точкам
-        start_node = ox.nearest_nodes(G, start_point[1], start_point[0])
-        end_node = ox.nearest_nodes(G, end_point[1], end_point[0])
+        # Находим ближайшие узлы графа для каждой точки
+        nodes = [ox.nearest_nodes(G, point[1], point[0]) for point in points]
 
-        print(start_node, end_node)
+        n = len(nodes)
+        distance_matrix = np.full((n, n), -1)
 
-        distance_matrix = np.zeros((len(request), len(request)))
+        # Параметр для ограничения области поиска (в метрах)
+        search_radius = 500  # Можно настроить радиус, например, 500 метров
 
-        for i in range(len(request)):
-            for j in range(len(request)):
+        def find_nodes_within_radius(graph, center_node, radius):
+            """Находит узлы в пределах заданного радиуса от центра."""
+            center_coords = (
+                graph.nodes[center_node]["y"],
+                graph.nodes[center_node]["x"],
+            )
+            nearby_nodes = set()
+
+            for node, data in graph.nodes(data=True):
+                node_coords = (data["y"], data["x"])
+                # Рассчитываем расстояние до центра
+                if geodesic(center_coords, node_coords).meters <= radius:
+                    nearby_nodes.add(node)
+
+            return nearby_nodes
+
+        # Добавляем узлы, которые находятся в пределах заданного радиуса от каждой точки
+        all_nodes = set(nodes)
+        for node in nodes:
+            nearby_nodes = find_nodes_within_radius(G, node, search_radius)
+            all_nodes.update(nearby_nodes)
+
+        all_nodes = list(all_nodes)
+        m = len(all_nodes)
+        distance_matrix = np.full((m, m), -1)
+
+        # Заполняем матрицу расстояний для всех найденных узлов в пределах области
+        for i in range(m):
+            for j in range(m):
                 if i == j:
                     distance_matrix[i, j] = 0
                 else:
-                    # TODO: Ask about distance between nodes
-
-                    distance_matrix[i, j] = nx.shortest_path_length(
-                        G,
-                        source=start_node,
-                        target=end_node,
-                        weight="length",
-                    )
+                    if G.has_edge(all_nodes[i], all_nodes[j]) or G.has_edge(
+                        all_nodes[j], all_nodes[i]
+                    ):
+                        edge_data = G.get_edge_data(
+                            all_nodes[i], all_nodes[j]
+                        ) or G.get_edge_data(all_nodes[j], all_nodes[i])
+                        if edge_data:
+                            distance_matrix[i, j] = edge_data[0]["length"]
 
         return {"distance_matrix": distance_matrix.tolist()}
     except nx.NodeNotFound:
