@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from geopy.distance import geodesic
 
 from schemas.route_request import RouteRequest
-from utils.utils import build_shortest_path, load_graph
+from utils.utils import build_shortest_path, build_shortest_path2, load_graph
 
 app = FastAPI(title="Graphmap Backend")
 
@@ -33,34 +33,44 @@ graphml_file = "ukraine_graph.graphml"
 
 @app.post("/shortest_path")
 def get_shortest_path(request: RouteRequest):
-    start_point = request.start_point
-    end_point = request.end_point
-
-    G = load_graph(graphml_file, custom_filter)
-
     try:
-        start_node = ox.nearest_nodes(G, start_point[1], start_point[0])
-        end_node = ox.nearest_nodes(G, end_point[1], end_point[0])
+        points = (
+            [request.start_point] + request.intermediate_points + [request.end_point]
+        )
+        G = load_graph(graphml_file, custom_filter)
 
-        if nx.has_path(G, start_node, end_node):
-            # Находим кратчайший путь между двумя узлами с использованием
-            # алгоритма Дейкстры
-            shortest_path = nx.shortest_path(G, start_node, end_node, weight="length")
+        # Знайти найближчі вузли для кожної точки
+        nodes = [ox.nearest_nodes(G, point[1], point[0]) for point in points]
 
-            route_coords = [
-                (G.nodes[node]["y"], G.nodes[node]["x"]) for node in shortest_path
-            ]
+        # Перевіряємо наявність шляху між кожною парою послідовних точок
+        full_route = []
+        for i in range(len(nodes) - 1):
+            start_node = nodes[i]
+            end_node = nodes[i + 1]
 
-            route_data = {"route": route_coords}
+            if not nx.has_path(G, start_node, end_node):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Can't find path between {points[i]} and {points[i+1]}.",
+                )
 
-            # build_shortest_path(G, shortest_path, start_point, end_point)
+            # Знаходимо найкоротший шлях для поточного сегмента
+            segment_path = nx.shortest_path(G, start_node, end_node, weight="length")
+            full_route.extend(
+                segment_path[:-1]
+            )  # Виключаємо останній вузол, щоб уникнути дублювання
 
-            return route_data
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail="Невозможно проложить маршрут между двумя точками.",
-            )
+        # Додаємо останній вузол останнього сегмента
+        full_route.append(nodes[-1])
+
+        build_shortest_path2(G, full_route, points)
+
+        # Генеруємо координати маршруту
+        route_coords = [(G.nodes[node]["y"], G.nodes[node]["x"]) for node in full_route]
+
+        route_data = {"route": route_coords}
+        return route_data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

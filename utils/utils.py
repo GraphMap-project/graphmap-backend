@@ -36,3 +36,33 @@ def build_shortest_path(G, shortest_path, start_point, end_point):
         label="Start/End Points",
     )
     plt.show()
+
+
+def build_shortest_path2(G, full_route, points):
+    fig, ax = ox.plot_graph_route(
+        G,
+        full_route,
+        route_linewidth=4,  # Толщина линии пути
+        node_size=0,  # Отключаем узлы
+        bgcolor="w",  # Цвет фона
+        route_color="r",  # Цвет маршрута
+        route_alpha=0.7,  # Прозрачность маршрута
+    )
+
+    # Координаты всех точек (для визуализации на карте)
+    lons = [point[1] for point in points]  # Долготы (X)
+    lats = [point[0] for point in points]  # Широты (Y)
+
+    # Добавляем точки маршрута (зелёные маркеры)
+    ax.scatter(
+        lons,
+        lats,
+        c="g",  # Цвет маркеров
+        s=100,  # Размер маркеров
+        zorder=5,  # Порядок наложения
+        label="Route Points",
+    )
+
+    # Показываем легенду
+    ax.legend()
+    plt.show()
