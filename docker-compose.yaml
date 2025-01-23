@@ -1,0 +1,36 @@
+version: "3.0"
+services:
+    postgres:
+        container_name: postgres
+        image: postgres
+        restart: always
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=graphmap
+        ports:
+            - "5433:5432"
+        networks:
+            - custom
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    pgadmin:
+        container_name: pgadmin
+        image: dpage/pgadmin4
+        restart: always
+        ports:
+            - "5051:80"
+        depends_on:
+            - postgres
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@admin.com
+            PGADMIN_DEFAULT_PASSWORD: root
+        networks:
+            - custom
+networks:
+    custom:
+        driver: bridge
+
+volumes:
+    postgres_data:
