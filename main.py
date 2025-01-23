@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.database import create_db_and_tables, create_engine
 from models.user import User
 from routes.shortest_path import shortest_path_route
+from routes.account import account
 
 app = FastAPI(title="Graphmap Backend")
 
@@ -25,3 +26,4 @@ def on_startup():
 ox.config(log_console=True, use_cache=True)
 
 app.include_router(shortest_path_route)
+app.include_router(account)
