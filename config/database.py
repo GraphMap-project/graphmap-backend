@@ -1,6 +1,7 @@
-from sqlmodel import Session, SQLModel, create_engine
 from typing import Annotated
+
 from fastapi import Depends
+from sqlmodel import Session, SQLModel, create_engine
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5433/graphmap"
 
