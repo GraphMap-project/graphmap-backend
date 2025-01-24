@@ -19,3 +19,14 @@ venv/Scripts/activate
 pip install -r requirements.txt
 ```
 - type ``uvicorn main:app --reload`` to execute file
+
+To make and run migrations:
+
+- Make migrations
+```
+alembic revision --autogenerate -m "Message"
+```
+- To run migrations
+```
+alembic upgrade head
+```
