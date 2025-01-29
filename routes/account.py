@@ -9,6 +9,7 @@ from config.database import SessionDep
 from config.jwt_config import *
 from models.user import User
 from schemas.userCreate import UserCreate
+from schemas.userLogin import UserLogin
 
 account = APIRouter()
 
@@ -46,3 +47,19 @@ def register(user: UserCreate, session: SessionDep):
     session.commit()
     session.refresh(new_user)
     return {"message": "created successfully"}
+
+
+@account.post("/login")
+def login(user: UserLogin, session: SessionDep):
+    statement = select(User).where(User.email == user.email)
+    db_user = session.exec(statement).first()
+    if not db_user:
+        raise HTTPException(status_code=401, detail="There is no user with such email")
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.email}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
