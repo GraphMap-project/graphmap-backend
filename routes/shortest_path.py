@@ -4,7 +4,15 @@ from fastapi import APIRouter, HTTPException
 from geopy.distance import geodesic
 
 from schemas.route_request import RouteRequest
-from utils.utils import build_shortest_path, build_shortest_path2, load_graph
+from utils.utils import (
+    alt_heuristic,
+    build_shortest_path,
+    build_shortest_path2,
+    filter_threats,
+    load_graph,
+    preprocess_landmarks,
+    select_landmarks,
+)
 
 shortest_path_route = APIRouter()
 
@@ -16,13 +24,16 @@ custom_filter = (
 graphml_file = "ukraine_graph.graphml"
 
 
-@shortest_path_route.post("/shortest_path")
-def get_shortest_path(request: RouteRequest):
+@shortest_path_route.post("/shortest_path_dijkstra")
+def get_shortest_path_dijkstra(request: RouteRequest):
     try:
         points = (
             [request.start_point] + request.intermediate_points + [request.end_point]
         )
         G = load_graph(graphml_file, custom_filter)
+
+        if request.threats:
+            G = filter_threats(G, request.threats)
 
         # Знайти найближчі вузли для кожної точки
         nodes = [ox.nearest_nodes(G, point[1], point[0]) for point in points]
@@ -41,6 +52,65 @@ def get_shortest_path(request: RouteRequest):
 
             # Знаходимо найкоротший шлях для поточного сегмента
             segment_path = nx.shortest_path(G, start_node, end_node, weight="length")
+            full_route.extend(
+                segment_path[:-1]
+            )  # Виключаємо останній вузол, щоб уникнути дублювання
+
+        # Додаємо останній вузол останнього сегмента
+        full_route.append(nodes[-1])
+
+        build_shortest_path2(G, full_route, points)
+
+        # Генеруємо координати маршруту
+        route_coords = [(G.nodes[node]["y"], G.nodes[node]["x"]) for node in full_route]
+
+        route_data = {"route": route_coords}
+        return route_data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@shortest_path_route.post("/shortest_path_alt")
+def get_shortest_path_alt(request: RouteRequest):
+    try:
+        points = (
+            [request.start_point] + request.intermediate_points + [request.end_point]
+        )
+        G = load_graph(graphml_file, custom_filter)
+
+        if request.threats:
+            G = filter_threats(G, request.threats)
+
+        # Знаходимо опорні точки, рахуємо відстані для кожної вершини
+        landmarks = select_landmarks(G)
+        landmark_distances = preprocess_landmarks(G, landmarks)
+
+        # Знайти найближчі вузли для кожної точки
+        nodes = [ox.nearest_nodes(G, point[1], point[0]) for point in points]
+
+        # Перевіряємо наявність шляху між кожною парою послідовних точок
+        full_route = []
+        for i in range(len(nodes) - 1):
+            start_node = nodes[i]
+            end_node = nodes[i + 1]
+
+            if not nx.has_path(G, start_node, end_node):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Can't find path between {points[i]} and {points[i+1]}.",
+                )
+
+            # Знаходимо найкоротший шлях для поточного сегмента
+            segment_path = nx.astar_path(
+                G,
+                start_node,
+                end_node,
+                weight="length",
+                heuristic=lambda u, v: alt_heuristic(
+                    u, v, landmarks, landmark_distances
+                ),
+            )
             full_route.extend(
                 segment_path[:-1]
             )  # Виключаємо останній вузол, щоб уникнути дублювання

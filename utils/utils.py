@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import networkx as nx
 import osmnx as ox
 
 
@@ -66,3 +67,55 @@ def build_shortest_path2(G, full_route, points):
     # Показываем легенду
     ax.legend()
     plt.show()
+
+
+def filter_threats(G, threats):
+    G = G.copy()
+
+    threat_nodes = []
+
+    for threat in threats:
+        threat_node = ox.nearest_nodes(G, threat[1], threat[0])
+        threat_nodes.append(threat_node)
+
+    print(f"--------------------------------{threat_nodes}----------------------------")
+    G.remove_nodes_from(threat_nodes)
+
+    return G
+
+
+CITY_COORDS = {
+    "Kyiv": (50.4501, 30.5234),
+    "Lviv": (49.8397, 24.0297),
+    "Kharkiv": (49.9935, 36.2304),
+    "Dnipro": (48.4647, 35.0462),
+    "Odesa": (46.4825, 30.7233),
+}
+
+
+def select_landmarks(G):
+    """Находит ближайшие узлы к координатам заданных городов."""
+    return {
+        city: ox.nearest_nodes(G, lon, lat) for city, (lat, lon) in CITY_COORDS.items()
+    }
+
+
+def preprocess_landmarks(G, landmarks):
+    """Предварительно вычисляет расстояния от опорных точек до всех узлов."""
+    landmark_distances = {}
+    for city, node in landmarks.items():
+        landmark_distances[city] = nx.single_source_dijkstra_path_length(
+            G, node, weight="length"
+        )
+    return landmark_distances
+
+
+def alt_heuristic(u, v, landmarks, landmark_distances):
+    """Вычисляет ALT-эвристику для A*."""
+    return max(
+        abs(
+            landmark_distances[city].get(u, float("inf"))
+            - landmark_distances[city].get(v, float("inf"))
+        )
+        for city in landmarks
+    )
