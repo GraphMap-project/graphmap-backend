@@ -1,9 +1,10 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, conlist
 
 
 class RouteRequest(BaseModel):
+    algorithm: Literal["dijkstra", "alt"]
     start_point: conlist(float, min_length=2, max_length=2)
     end_point: conlist(float, min_length=2, max_length=2)
     intermediate_points: Optional[List[conlist(float, min_length=2, max_length=2)]] = []

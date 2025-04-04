@@ -2,7 +2,9 @@ import os
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import osmnx as ox
+from scipy.spatial.distance import euclidean
 
 
 def load_graph(graphml_file, custom_filter):
@@ -16,30 +18,7 @@ def load_graph(graphml_file, custom_filter):
     return G
 
 
-def build_shortest_path(G, shortest_path, start_point, end_point):
-    fig, ax = ox.plot_graph_route(
-        G,
-        shortest_path,
-        route_linewidth=4,  # Толщина линии пути
-        node_size=0,  # Отключаем узлы
-        bgcolor="w",  # Цвет фона
-        route_color="r",  # Цвет маршрута
-        route_alpha=0.7,  # Прозрачность маршрута
-    )
-
-    # Добавляем начальную и конечную точки как зелёные круги
-    ax.scatter(
-        [start_point[1], end_point[1]],  # Долгота (X)
-        [start_point[0], end_point[0]],  # Широта (Y)
-        c="g",  # Цвет маркеров
-        s=100,  # Размер маркеров
-        zorder=5,  # Порядок наложения (над графом)
-        label="Start/End Points",
-    )
-    plt.show()
-
-
-def build_shortest_path2(G, full_route, points):
+def plot_shortest_path(G, full_route, points):
     fig, ax = ox.plot_graph_route(
         G,
         full_route,
@@ -84,20 +63,46 @@ def filter_threats(G, threats):
     return G
 
 
-CITY_COORDS = {
-    "Kyiv": (50.4501, 30.5234),
-    "Lviv": (49.8397, 24.0297),
-    "Kharkiv": (49.9935, 36.2304),
-    "Dnipro": (48.4647, 35.0462),
-    "Odesa": (46.4825, 30.7233),
-}
+def auto_select_landmarks(G, start_node, end_node, num_landmarks=5):
+    """
+    Automatically selects landmarks for ALT algorithm based on the distance between
+    start and end points, with random offsets added.
 
+    Args:
+        G: NetworkX graph
+        start_node: Starting node ID
+        end_node: Ending node ID
+        num_landmarks: Number of landmarks to select
 
-def select_landmarks(G):
-    """Находит ближайшие узлы к координатам заданных городов."""
-    return {
-        city: ox.nearest_nodes(G, lon, lat) for city, (lat, lon) in CITY_COORDS.items()
-    }
+    Returns:
+        Dictionary mapping landmark names to node IDs
+    """
+
+    # Get coordinates of start and end nodes
+    start_coords = (G.nodes[start_node]["y"], G.nodes[start_node]["x"])
+    end_coords = (G.nodes[end_node]["y"], G.nodes[end_node]["x"])
+
+    # Calculate coordinates for each landmark
+    landmarks = {}
+    for i in range(1, num_landmarks + 1):
+        # Interpolate between start and end
+        t = i / (num_landmarks + 2)
+        base_lat = start_coords[0] + t * (end_coords[0] - start_coords[0])
+        base_lon = start_coords[1] + t * (end_coords[1] - start_coords[1])
+
+        # Add random offset between -2 and 2 to both coordinates
+        random_lat_offset = np.random.uniform(-2, 2)
+        random_lon_offset = np.random.uniform(-2, 2)
+
+        lat = base_lat + random_lat_offset
+        lon = base_lon + random_lon_offset
+
+        # Find nearest node to this point
+        node = ox.nearest_nodes(G, lon, lat)
+        landmarks[f"landmark_{i}"] = node
+        print(f"landmark_{i} = {G.nodes[node]['y']}, {G.nodes[node]['x']}")
+
+    return landmarks
 
 
 def preprocess_landmarks(G, landmarks):
