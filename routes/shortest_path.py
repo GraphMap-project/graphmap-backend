@@ -6,6 +6,7 @@ from schemas.route_request import RouteRequest
 from utils.utils import (
     alt_heuristic,
     auto_select_landmarks,
+    extract_edge_geometries,
     filter_threats,
     load_graph,
     plot_shortest_path,
@@ -80,9 +81,8 @@ def get_shortest_path(request: RouteRequest):
             path_func = alt_algorithm
 
         full_route = build_full_route(G, nodes, points, path_func)
-        plot_shortest_path(G, full_route, points)
 
-        route_coords = [(G.nodes[node]["y"], G.nodes[node]["x"]) for node in full_route]
+        route_coords = extract_edge_geometries(G, full_route)
         return {"route": route_coords}
 
     except HTTPException:

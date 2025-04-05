@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import osmnx as ox
 from scipy.spatial.distance import euclidean
+from shapely.geometry import LineString
 
 
 def load_graph(graphml_file, custom_filter):
@@ -16,6 +17,38 @@ def load_graph(graphml_file, custom_filter):
         )
         ox.save_graphml(G, filepath=graphml_file)
     return G
+
+
+def extract_edge_geometries(G, path):
+    edge_lines = []
+
+    for u, v in zip(path[:-1], path[1:]):
+        data = G.get_edge_data(u, v)
+
+        # Если несколько рёбер между u и v
+        if isinstance(data, dict):
+            edge_data = data[list(data.keys())[0]]
+        else:
+            edge_data = data
+
+        # Если есть геометрия ребра — используем её
+        if "geometry" in edge_data:
+            line = edge_data["geometry"]
+            edge_lines.append(line)
+        else:
+            # Иначе просто соединяем две точки прямой
+            point_u = (G.nodes[u]["x"], G.nodes[u]["y"])
+            point_v = (G.nodes[v]["x"], G.nodes[v]["y"])
+            line = LineString([point_u, point_v])
+            edge_lines.append(line)
+
+    # Объединяем все линии в одну последовательность координат
+    coords = []
+    for line in edge_lines:
+        coords.extend(list(line.coords))
+
+    # Убедимся, что это формат [lat, lng], а не [lng, lat]
+    return [(lat, lon) for lon, lat in coords]
 
 
 def plot_shortest_path(G, full_route, points):
