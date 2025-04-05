@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 import osmnx as ox
 from scipy.spatial.distance import euclidean
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point, Polygon
 
 
 def load_graph(graphml_file, custom_filter):
@@ -84,14 +84,19 @@ def plot_shortest_path(G, full_route, points):
 def filter_threats(G, threats):
     G = G.copy()
 
-    threat_nodes = []
+    polygons = [Polygon([(lng, lat) for lat, lng in threat]) for threat in threats]
 
-    for threat in threats:
-        threat_node = ox.nearest_nodes(G, threat[1], threat[0])
-        threat_nodes.append(threat_node)
+    nodes_to_remove = []
 
-    print(f"--------------------------------{threat_nodes}----------------------------")
-    G.remove_nodes_from(threat_nodes)
+    for node, data in G.nodes(data=True):
+        point = Point(data["x"], data["y"])  # x = lon, y = lat
+
+        # Проверим, находится ли узел внутри хотя бы одного полигона
+        if any(polygon.contains(point) for polygon in polygons):
+            nodes_to_remove.append(node)
+
+    print(f"Deleting {len(nodes_to_remove)} nodes")
+    G.remove_nodes_from(nodes_to_remove)
 
     return G
 
