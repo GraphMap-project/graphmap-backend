@@ -83,7 +83,24 @@ def get_shortest_path(request: RouteRequest):
         full_route = build_full_route(G, nodes, points, path_func)
 
         route_coords = extract_edge_geometries(G, full_route)
-        return {"route": route_coords}
+
+        # Расчёт общей длины маршрута
+        total_distance = 0
+        for i in range(len(full_route) - 1):
+            u, v = full_route[i], full_route[i + 1]
+            edge_data = G.get_edge_data(u, v)
+            # В графе может быть несколько рёбер между узлами (мультиграф)
+            if isinstance(edge_data, dict):
+                if 0 in edge_data:
+                    total_distance += edge_data[0].get("length", 0)
+                else:
+                    # если это обычный граф, а не мультиграф
+                    total_distance += edge_data.get("length", 0)
+
+        return {
+            "route": route_coords,
+            "distance": round(total_distance / 1000, 2),  # Convert to kilometers
+        }
 
     except HTTPException:
         raise
