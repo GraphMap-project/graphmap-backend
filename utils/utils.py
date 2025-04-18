@@ -4,18 +4,29 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import osmnx as ox
+import pickle
 from scipy.spatial.distance import euclidean
 from shapely.geometry import LineString, Point, Polygon
 
 
-def load_graph(graphml_file, custom_filter):
-    if os.path.exists(graphml_file):
-        G = ox.load_graphml(graphml_file)
+def load_graph(pkl_file, custom_filter):
+    if os.path.exists(f'{pkl_file}.pkl'):
+        with open(f'{pkl_file}.pkl', "rb") as f:
+            G = pickle.load(f)
+            print("Graph loaded from .pkl file.")
+    elif os.path.exists(f'{pkl_file}.graphml'):
+        print("Found .graphml file, loading and converting to .pkl...")
+        G = ox.load_graphml("ukraine_graph.graphml")
+        with open(f'{pkl_file}.pkl', "wb") as f:
+            pickle.dump(G, f)
+            print("Graph saved to .pkl file from .graphml.")
     else:
         G = ox.graph_from_place(
             "Ukraine", network_type="drive", simplify=True, custom_filter=custom_filter
         )
-        ox.save_graphml(G, filepath=graphml_file)
+        with open(f'{pkl_file}.pkl', "wb") as f:
+            pickle.dump(G, f)
+            print("Graph created and saved to .pkl file.")
     return G
 
 

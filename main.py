@@ -11,10 +11,18 @@ from utils.utils import load_graph
 
 custom_filter = (
     '["highway"~"motorway|trunk|primary|secondary|tertiary|'
-    'motorway_link|trunk_link|primary_link|secondary_link|tertiary_link"]'
+    "motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|"
+    'residential"]'
 )
+# custom_filter = (
+#     '["highway"~"motorway|trunk|primary|secondary|tertiary|'
+#     'motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|'
+#     'unclassified|residential|living_street|service"]'
+#     '["area"!~"yes"]'
+#     '["service"!~"parking_aisle"]'
+# )
 
-graphml_file = "ukraine_graph.graphml"
+graph_pickle_file = "ukraine_graph"
 
 app = FastAPI(title="Graphmap Backend")
 
@@ -35,5 +43,5 @@ app.include_router(account)
 
 @app.on_event("startup")
 async def load_graph_on_startup():
-    app.state.graph = load_graph(graphml_file, custom_filter)
+    app.state.graph = load_graph(graph_pickle_file, custom_filter)
     print("Graph loaded and ready to use.")
