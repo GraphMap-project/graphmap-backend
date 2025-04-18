@@ -51,7 +51,7 @@ def extract_edge_geometries(G, path):
     return [(lat, lon) for lon, lat in coords]
 
 
-def plot_shortest_path(G, full_route, points):
+def plot_shortest_path(G, full_route, points, start_point, end_point):
     fig, ax = ox.plot_graph_route(
         G,
         full_route,
@@ -60,6 +60,8 @@ def plot_shortest_path(G, full_route, points):
         bgcolor="w",  # Цвет фона
         route_color="r",  # Цвет маршрута
         route_alpha=0.7,  # Прозрачность маршрута
+        show=False,  # Не показываем график
+        close=False,  # Не закрывать окно
     )
 
     # Координаты всех точек (для визуализации на карте)
@@ -68,8 +70,17 @@ def plot_shortest_path(G, full_route, points):
 
     # Добавляем точки маршрута (зелёные маркеры)
     ax.scatter(
-        lons,
-        lats,
+        start_point[1],
+        start_point[0],
+        c="g",  # Цвет маркеров
+        s=100,  # Размер маркеров
+        zorder=5,  # Порядок наложения
+        label="Route Points",
+    )
+
+    ax.scatter(
+        end_point[1],
+        end_point[0],
         c="g",  # Цвет маркеров
         s=100,  # Размер маркеров
         zorder=5,  # Порядок наложения
@@ -84,7 +95,8 @@ def plot_shortest_path(G, full_route, points):
 def filter_threats(G, threats):
     G = G.copy()
 
-    polygons = [Polygon([(lng, lat) for lat, lng in threat]) for threat in threats]
+    polygons = [Polygon([(lng, lat) for lat, lng in threat])
+                for threat in threats]
 
     nodes_to_remove = []
 

@@ -7,6 +7,15 @@ from models.user import User
 from routes.account import account
 from routes.shortest_path import shortest_path_route
 
+from utils.utils import load_graph
+
+custom_filter = (
+    '["highway"~"motorway|trunk|primary|secondary|tertiary|'
+    'motorway_link|trunk_link|primary_link|secondary_link|tertiary_link"]'
+)
+
+graphml_file = "ukraine_graph.graphml"
+
 app = FastAPI(title="Graphmap Backend")
 
 app.add_middleware(
@@ -22,3 +31,9 @@ ox.config(log_console=True, use_cache=True)
 
 app.include_router(shortest_path_route)
 app.include_router(account)
+
+
+@app.on_event("startup")
+async def load_graph_on_startup():
+    app.state.graph = load_graph(graphml_file, custom_filter)
+    print("Graph loaded and ready to use.")

@@ -1,6 +1,6 @@
 import networkx as nx
 import osmnx as ox
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from schemas.route_request import RouteRequest
 from utils.utils import (
@@ -15,17 +15,12 @@ from utils.utils import (
 
 shortest_path_route = APIRouter()
 
-custom_filter = (
-    '["highway"~"motorway|trunk|primary|secondary|tertiary|'
-    'motorway_link|trunk_link|primary_link|secondary_link|tertiary_link"]'
-)
 
-graphml_file = "ukraine_graph.graphml"
+def prepare_graph_and_nodes(request: RouteRequest, app):
+    points = [request.start_point] + \
+        request.intermediate_points + [request.end_point]
 
-
-def prepare_graph_and_nodes(request: RouteRequest):
-    points = [request.start_point] + request.intermediate_points + [request.end_point]
-    G = load_graph(graphml_file, custom_filter)
+    G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
     if request.threats:
         G = filter_threats(G, request.threats)
@@ -65,14 +60,16 @@ def alt_algorithm(G, u, v):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(
+            u_, v_, landmarks, landmark_distances),
     )
 
 
 @shortest_path_route.post("/shortest_path")
-def get_shortest_path(request: RouteRequest):
+def get_shortest_path(request: RouteRequest, app: Request):
     try:
-        G, nodes, points = prepare_graph_and_nodes(request)
+        G, nodes, points = prepare_graph_and_nodes(
+            request, app.app)
 
         if request.algorithm == "dijkstra":
             path_func = dijkstra_algorithm
@@ -97,9 +94,13 @@ def get_shortest_path(request: RouteRequest):
                     # если это обычный граф, а не мультиграф
                     total_distance += edge_data.get("length", 0)
 
+        plot_shortest_path(
+            G, full_route, points, request.start_point, request.end_point)
+
         return {
             "route": route_coords,
-            "distance": round(total_distance / 1000, 2),  # Convert to kilometers
+            # Convert to kilometers
+            "distance": round(total_distance / 1000, 2),
         }
 
     except HTTPException:
