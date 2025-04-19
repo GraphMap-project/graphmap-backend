@@ -98,17 +98,24 @@ def get_shortest_path(request: RouteRequest, app: Request):
 
         # plot_shortest_path(
         #     G, full_route, points, request.start_point, request.end_point)
-        settlements = get_settlements_along_route(G, full_route, sample_interval=20)
-        filename = save_route_to_file(route_coords, settlements, total_distance)
+        download_url = None
 
-        download_url = f"/download_route/{filename}"
+        if request.save_to_file:
+            settlements = get_settlements_along_route(G, full_route, sample_interval=20)
+            filename = save_route_to_file(route_coords, settlements, total_distance)
 
-        return {
+            download_url = f"/download_route/{filename}"
+
+        response = {
             "route": route_coords,
             # Convert to kilometers
             "distance": round(total_distance / 1000, 2),
-            "download_url": download_url,
         }
+
+        if download_url:
+            response["download_url"] = download_url
+
+        return response
 
     except HTTPException:
         raise

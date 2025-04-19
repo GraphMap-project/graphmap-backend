@@ -9,6 +9,7 @@ class RouteRequest(BaseModel):
     end_point: conlist(float, min_length=2, max_length=2)
     intermediate_points: Optional[List[conlist(float, min_length=2, max_length=2)]] = []
     threats: Optional[List[List[conlist(float, min_length=2, max_length=2)]]] = []
+    save_to_file: Optional[bool] = False
 
     def __len__(self):
         point_lst = [self.start_point, self.end_point, self.intermediate_points]
