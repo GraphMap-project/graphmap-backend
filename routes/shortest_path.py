@@ -17,8 +17,7 @@ shortest_path_route = APIRouter()
 
 
 def prepare_graph_and_nodes(request: RouteRequest, app):
-    points = [request.start_point] + \
-        request.intermediate_points + [request.end_point]
+    points = [request.start_point] + request.intermediate_points + [request.end_point]
 
     G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
@@ -60,16 +59,14 @@ def alt_algorithm(G, u, v):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(
-            u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
     )
 
 
 @shortest_path_route.post("/shortest_path")
 def get_shortest_path(request: RouteRequest, app: Request):
     try:
-        G, nodes, points = prepare_graph_and_nodes(
-            request, app.app)
+        G, nodes, points = prepare_graph_and_nodes(request, app.app)
 
         if request.algorithm == "dijkstra":
             path_func = dijkstra_algorithm
@@ -94,8 +91,8 @@ def get_shortest_path(request: RouteRequest, app: Request):
                     # если это обычный граф, а не мультиграф
                     total_distance += edge_data.get("length", 0)
 
-        plot_shortest_path(
-            G, full_route, points, request.start_point, request.end_point)
+        # plot_shortest_path(
+        #     G, full_route, points, request.start_point, request.end_point)
 
         return {
             "route": route_coords,
