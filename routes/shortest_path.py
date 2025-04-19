@@ -1,6 +1,9 @@
+import os
+
 import networkx as nx
 import osmnx as ox
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from schemas.route_request import RouteRequest
 from utils.utils import (
@@ -8,9 +11,11 @@ from utils.utils import (
     auto_select_landmarks,
     extract_edge_geometries,
     filter_threats,
+    get_settlements_along_route,
     load_graph,
     plot_shortest_path,
     preprocess_landmarks,
+    save_route_to_file,
 )
 
 shortest_path_route = APIRouter()
@@ -93,14 +98,29 @@ def get_shortest_path(request: RouteRequest, app: Request):
 
         # plot_shortest_path(
         #     G, full_route, points, request.start_point, request.end_point)
+        settlements = get_settlements_along_route(G, full_route, sample_interval=20)
+        filename = save_route_to_file(route_coords, settlements, total_distance)
+
+        download_url = f"/download_route/{filename}"
 
         return {
             "route": route_coords,
             # Convert to kilometers
             "distance": round(total_distance / 1000, 2),
+            "download_url": download_url,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@shortest_path_route.get("/download_route/{filename}")
+def download_route(filename: str):
+    file_path = os.path.join("temp_files", filename)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(path=file_path, filename="route.txt", media_type="text/plain")

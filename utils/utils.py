@@ -1,10 +1,13 @@
 import os
 import pickle
+import time
+import uuid
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import osmnx as ox
+from geopy.geocoders import Nominatim
 from scipy.spatial.distance import euclidean
 from shapely.geometry import LineString, Point, Polygon
 
@@ -184,3 +187,84 @@ def alt_heuristic(u, v, landmarks, landmark_distances):
         )
         for city in landmarks
     )
+
+
+def get_settlements_along_route(G, route_nodes, sample_interval=10):
+    """Extracts settlements names along route"""
+    print("Extracting settlements along route...")
+
+    settlements = []
+    current_settlement = None
+
+    geolocator = Nominatim(user_agent="route_planner")
+
+    sampled_nodes = [
+        route_nodes[i] for i in range(0, len(route_nodes), sample_interval)
+    ]
+
+    for node in sampled_nodes:
+        lat = G.nodes[node]["y"]
+        lon = G.nodes[node]["x"]
+
+        try:
+            location = geolocator.reverse(f"{lat}, {lon}", language="uk")
+
+            if location and location.raw.get("address"):
+                # Пытаемся получить название населенного пункта
+                address = location.raw["address"]
+
+                # Приоритет полей для населенных пунктов
+                for field in [
+                    "city",
+                    "town",
+                    "village",
+                    "hamlet",
+                    "suburb",
+                    "district",
+                    "municipality",
+                ]:
+                    if field in address:
+                        settlement_name = address[field]
+
+                        # Добавляем только если это новый населенный пункт
+                        if settlement_name != current_settlement:
+                            settlements.append(settlement_name)
+                            current_settlement = settlement_name
+                        break
+
+            # Делаем паузу между запросами, чтобы не превышать лимиты API
+            time.sleep(1)
+
+        except Exception as e:
+            # Пропускаем ошибки геокодирования
+            continue
+    return settlements
+
+
+def save_route_to_file(route_coords, settlements, total_distance):
+    """Save route to txt file"""
+    print("Saving route to file...")
+
+    unique_id = str(uuid.uuid4())
+
+    filename = f"route_{unique_id}.txt"
+    file_path = os.path.join("temp_files", filename)
+
+    os.makedirs("temp_files", exist_ok=True)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write("Інформація про маршрут\n")
+        f.write(f"Відстань: {round(total_distance / 1000, 2)} км\n")
+
+        f.write("\nТочки маршруту:\n")
+        if settlements:
+            for i, settlement in enumerate(settlements, 1):
+                f.write(f"{i}. {settlement}\n")
+        else:
+            f.write("Немає інформації про міста\n")
+
+        f.write("\nКоординати точок маршруту:\n")
+        for i, coord in enumerate(route_coords, 1):
+            f.write(f"{i}. [{coord[1]}, {coord[0]}]\n")
+
+    return filename
