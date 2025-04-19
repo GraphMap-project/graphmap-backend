@@ -99,7 +99,7 @@ def get_shortest_path(request: RouteRequest, app: Request):
         # plot_shortest_path(
         #     G, full_route, points, request.start_point, request.end_point)
         download_url = None
-
+        # Если пользователь хочет получить файл с маршрутом
         if request.save_to_file:
             settlements = get_settlements_along_route(G, full_route, sample_interval=20)
             filename = save_route_to_file(route_coords, settlements, total_distance)
@@ -111,7 +111,7 @@ def get_shortest_path(request: RouteRequest, app: Request):
             # Convert to kilometers
             "distance": round(total_distance / 1000, 2),
         }
-
+        # Добавляем в ответ ссылку на файл
         if download_url:
             response["download_url"] = download_url
 
@@ -125,6 +125,7 @@ def get_shortest_path(request: RouteRequest, app: Request):
 
 @shortest_path_route.get("/download_route/{filename}")
 def download_route(filename: str):
+    # Эндпоинт для отправки файла пользователю
     file_path = os.path.join("temp_files", filename)
 
     if not os.path.exists(file_path):

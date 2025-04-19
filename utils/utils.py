@@ -196,8 +196,10 @@ def get_settlements_along_route(G, route_nodes, sample_interval=10):
     settlements = []
     current_settlement = None
 
+    # Geolocator - будет искать инфу по координатам
     geolocator = Nominatim(user_agent="route_planner")
 
+    # берем часть узлов (не все)
     sampled_nodes = [
         route_nodes[i] for i in range(0, len(route_nodes), sample_interval)
     ]
@@ -207,6 +209,7 @@ def get_settlements_along_route(G, route_nodes, sample_interval=10):
         lon = G.nodes[node]["x"]
 
         try:
+            # Получаем по координатам инфу
             location = geolocator.reverse(f"{lat}, {lon}", language="uk")
 
             if location and location.raw.get("address"):
