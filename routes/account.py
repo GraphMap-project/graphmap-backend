@@ -54,7 +54,8 @@ def login(user: UserLogin, session: SessionDep):
     statement = select(User).where(User.email == user.email)
     db_user = session.exec(statement).first()
     if not db_user:
-        raise HTTPException(status_code=401, detail="There is no user with such email")
+        raise HTTPException(
+            status_code=401, detail="There is no user with such email")
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid password")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

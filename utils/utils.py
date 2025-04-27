@@ -1,14 +1,15 @@
 import os
 import pickle
-import time
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import osmnx as ox
-from geopy.geocoders import Nominatim
-from scipy.spatial.distance import euclidean
 from shapely.geometry import LineString, Point, Polygon
+from sqlmodel import Session
+
+from config.database import engine
+from utils.db_utils import find_nearest_settlement
 
 
 def load_graph(pkl_file, custom_filter):
@@ -189,58 +190,29 @@ def alt_heuristic(u, v, landmarks, landmark_distances):
     )
 
 
-def get_settlements_along_route(G, route_nodes, sample_interval=10):
+async def get_settlements_along_route(G, route_nodes, sample_interval=10):
     """Extracts settlements names along route"""
-    print("Extracting settlements along route...")
+    print("Extracting settlements along route from DB...")
 
     settlements = []
     current_settlement = None
-
-    # Geolocator - будет искать инфу по координатам
-    geolocator = Nominatim(user_agent="route_planner")
 
     # берем часть узлов (не все)
     sampled_nodes = [
         route_nodes[i] for i in range(0, len(route_nodes), sample_interval)
     ]
 
-    for node in sampled_nodes:
-        lat = G.nodes[node]["y"]
-        lon = G.nodes[node]["x"]
+    with Session(engine) as session:
+        for node in sampled_nodes:
+            lat = G.nodes[node]["y"]
+            lon = G.nodes[node]["x"]
 
-        try:
-            # Получаем по координатам инфу
-            location = geolocator.reverse(f"{lat}, {lon}", language="uk")
+            settlement_name = find_nearest_settlement(session, lat, lon)
 
-            if location and location.raw.get("address"):
-                # Пытаемся получить название населенного пункта
-                address = location.raw["address"]
+            if settlement_name and settlement_name != current_settlement:
+                settlements.append(settlement_name)
+                current_settlement = settlement_name
 
-                # Приоритет полей для населенных пунктов
-                for field in [
-                    "city",
-                    "town",
-                    "village",
-                    "hamlet",
-                    "suburb",
-                    "district",
-                    "municipality",
-                ]:
-                    if field in address:
-                        settlement_name = address[field]
-
-                        # Добавляем только если это новый населенный пункт
-                        if settlement_name != current_settlement:
-                            settlements.append(settlement_name)
-                            current_settlement = settlement_name
-                        break
-
-            # Делаем паузу между запросами, чтобы не превышать лимиты API
-            # time.sleep(1)
-
-        except Exception as e:
-            # Пропускаем ошибки геокодирования
-            continue
     return settlements
 
 

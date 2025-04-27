@@ -1,11 +1,10 @@
-import os
 import uuid
 from io import BytesIO
 
 import networkx as nx
 import osmnx as ox
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from schemas.route_request import RouteRequest
 from utils.utils import (
@@ -127,7 +126,7 @@ def get_shortest_path(request: RouteRequest, app: Request):
 
 
 @shortest_path_route.get("/generate_route_file/{route_id}")
-def generate_route_file(route_id: str, app: Request):
+async def generate_route_file(route_id: str, app: Request):
     try:
         if route_id not in ROUTES_CACHE:
             raise HTTPException(status_code=404, detail="Route not found")
@@ -138,7 +137,7 @@ def generate_route_file(route_id: str, app: Request):
         route_coords = data["route_coords"]
         total_distance = data["total_distance"]
 
-        settlements = get_settlements_along_route(
+        settlements = await get_settlements_along_route(
             G, full_route, sample_interval=20)
 
         file_content = build_route_file_content(
