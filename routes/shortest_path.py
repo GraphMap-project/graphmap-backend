@@ -1,28 +1,32 @@
 import os
+import uuid
+from io import BytesIO
 
 import networkx as nx
 import osmnx as ox
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from schemas.route_request import RouteRequest
 from utils.utils import (
     alt_heuristic,
     auto_select_landmarks,
+    build_route_file_content,
     extract_edge_geometries,
     filter_threats,
     get_settlements_along_route,
-    load_graph,
     plot_shortest_path,
     preprocess_landmarks,
-    save_route_to_file,
 )
 
 shortest_path_route = APIRouter()
 
+ROUTES_CACHE = {}
+
 
 def prepare_graph_and_nodes(request: RouteRequest, app):
-    points = [request.start_point] + request.intermediate_points + [request.end_point]
+    points = [request.start_point] + \
+        request.intermediate_points + [request.end_point]
 
     G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
@@ -64,7 +68,8 @@ def alt_algorithm(G, u, v):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(
+            u_, v_, landmarks, landmark_distances),
     )
 
 
@@ -98,22 +103,20 @@ def get_shortest_path(request: RouteRequest, app: Request):
 
         # plot_shortest_path(
         #     G, full_route, points, request.start_point, request.end_point)
-        download_url = None
-        # Если пользователь хочет получить файл с маршрутом
-        if request.save_to_file:
-            settlements = get_settlements_along_route(G, full_route, sample_interval=20)
-            filename = save_route_to_file(route_coords, settlements, total_distance)
 
-            download_url = f"/download_route/{filename}"
+        route_id = str(uuid.uuid4())
+
+        ROUTES_CACHE[route_id] = {
+            "full_route": full_route,
+            "route_coords": route_coords,
+            "total_distance": total_distance
+        }
 
         response = {
             "route": route_coords,
-            # Convert to kilometers
             "distance": round(total_distance / 1000, 2),
+            "route_id": route_id
         }
-        # Добавляем в ответ ссылку на файл
-        if download_url:
-            response["download_url"] = download_url
 
         return response
 
@@ -123,12 +126,30 @@ def get_shortest_path(request: RouteRequest, app: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@shortest_path_route.get("/download_route/{filename}")
-def download_route(filename: str):
-    # Эндпоинт для отправки файла пользователю
-    file_path = os.path.join("temp_files", filename)
+@shortest_path_route.get("/generate_route_file/{route_id}")
+def generate_route_file(route_id: str, app: Request):
+    try:
+        if route_id not in ROUTES_CACHE:
+            raise HTTPException(status_code=404, detail="Route not found")
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        data = ROUTES_CACHE[route_id]
+        G = app.app.state.graph
+        full_route = data["full_route"]
+        route_coords = data["route_coords"]
+        total_distance = data["total_distance"]
 
-    return FileResponse(path=file_path, filename="route.txt", media_type="text/plain")
+        settlements = get_settlements_along_route(
+            G, full_route, sample_interval=20)
+
+        file_content = build_route_file_content(
+            route_coords, settlements, total_distance)
+
+        file_stream = BytesIO(file_content.encode("utf-8"))
+
+        return StreamingResponse(
+            file_stream,
+            media_type="text/plain",
+            headers={"Content-Disposition": "attachment; filename=route.txt"},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

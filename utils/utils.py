@@ -1,7 +1,6 @@
 import os
 import pickle
 import time
-import uuid
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -109,7 +108,8 @@ def plot_shortest_path(G, full_route, points, start_point, end_point):
 def filter_threats(G, threats):
     G = G.copy()
 
-    polygons = [Polygon([(lng, lat) for lat, lng in threat]) for threat in threats]
+    polygons = [Polygon([(lng, lat) for lat, lng in threat])
+                for threat in threats]
 
     nodes_to_remove = []
 
@@ -236,7 +236,7 @@ def get_settlements_along_route(G, route_nodes, sample_interval=10):
                         break
 
             # Делаем паузу между запросами, чтобы не превышать лимиты API
-            time.sleep(1)
+            # time.sleep(1)
 
         except Exception as e:
             # Пропускаем ошибки геокодирования
@@ -244,30 +244,20 @@ def get_settlements_along_route(G, route_nodes, sample_interval=10):
     return settlements
 
 
-def save_route_to_file(route_coords, settlements, total_distance):
-    """Save route to txt file"""
-    print("Saving route to file...")
+def build_route_file_content(route_coords, settlements, total_distance) -> str:
+    """Генерирует содержимое файла маршрута в виде строки."""
+    content = "Інформація про маршрут\n"
+    content += f"Відстань: {round(total_distance / 1000, 2)} км\n\n"
 
-    unique_id = str(uuid.uuid4())
+    content += "Точки маршруту:\n"
+    if settlements:
+        for i, settlement in enumerate(settlements, 1):
+            content += f"{i}. {settlement}\n"
+    else:
+        content += "Немає інформації про міста\n"
 
-    filename = f"route_{unique_id}.txt"
-    file_path = os.path.join("temp_files", filename)
+    # content += "\nКоординати точок маршруту:\n"
+    # for i, coord in enumerate(route_coords, 1):
+    #     content += f"{i}. [{coord[1]}, {coord[0]}]\n"
 
-    os.makedirs("temp_files", exist_ok=True)
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write("Інформація про маршрут\n")
-        f.write(f"Відстань: {round(total_distance / 1000, 2)} км\n")
-
-        f.write("\nТочки маршруту:\n")
-        if settlements:
-            for i, settlement in enumerate(settlements, 1):
-                f.write(f"{i}. {settlement}\n")
-        else:
-            f.write("Немає інформації про міста\n")
-
-        f.write("\nКоординати точок маршруту:\n")
-        for i, coord in enumerate(route_coords, 1):
-            f.write(f"{i}. [{coord[1]}, {coord[0]}]\n")
-
-    return filename
+    return content
