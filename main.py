@@ -2,16 +2,16 @@ import osmnx as ox
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
-from config.database import engine
 
+from config.database import engine
 from routes.account import account
 from routes.shortest_path import shortest_path_route
-from utils.utils import load_graph
 from utils.db_utils import load_settlements_from_geonames
+from utils.utils import load_graph
 
 custom_filter = (
     '["highway"~"motorway|trunk|primary|secondary|tertiary|'
-    'motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|'
+    "motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|"
     'unclassified|residential|living_street|service"]'
     '["area"!~"yes"]'
     '["service"!~"parking_aisle"]'

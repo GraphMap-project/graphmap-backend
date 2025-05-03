@@ -24,8 +24,7 @@ ROUTES_CACHE = {}
 
 
 def prepare_graph_and_nodes(request: RouteRequest, app):
-    points = [request.start_point] + \
-        request.intermediate_points + [request.end_point]
+    points = [request.start_point] + request.intermediate_points + [request.end_point]
 
     G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
@@ -67,8 +66,7 @@ def alt_algorithm(G, u, v):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(
-            u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
     )
 
 
@@ -108,13 +106,13 @@ def get_shortest_path(request: RouteRequest, app: Request):
         ROUTES_CACHE[route_id] = {
             "full_route": full_route,
             "route_coords": route_coords,
-            "total_distance": total_distance
+            "total_distance": total_distance,
         }
 
         response = {
             "route": route_coords,
             "distance": round(total_distance / 1000, 2),
-            "route_id": route_id
+            "route_id": route_id,
         }
 
         return response
@@ -138,10 +136,12 @@ async def generate_route_file(route_id: str, app: Request):
         total_distance = data["total_distance"]
 
         settlements = await get_settlements_along_route(
-            G, full_route, sample_interval=20)
+            G, full_route, sample_interval=20
+        )
 
         file_content = build_route_file_content(
-            route_coords, settlements, total_distance)
+            route_coords, settlements, total_distance
+        )
 
         file_stream = BytesIO(file_content.encode("utf-8"))
 

@@ -109,8 +109,7 @@ def plot_shortest_path(G, full_route, points, start_point, end_point):
 def filter_threats(G, threats):
     G = G.copy()
 
-    polygons = [Polygon([(lng, lat) for lat, lng in threat])
-                for threat in threats]
+    polygons = [Polygon([(lng, lat) for lat, lng in threat]) for threat in threats]
 
     nodes_to_remove = []
 
