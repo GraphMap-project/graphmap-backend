@@ -9,13 +9,14 @@ from sqlmodel import select
 from config.database import SessionDep
 from config.jwt_config import *
 from models.user import User
-from schemas.refresh_token import RefreshToken
 from schemas.userCreate import UserCreate
 from schemas.userLogin import UserLogin
 
 account = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+refresh_token_scheme = OAuth2PasswordBearer(tokenUrl="refresh")
 
 
 def hash_password(password):
@@ -38,7 +39,8 @@ def create_refresh_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -64,7 +66,8 @@ def login(user: UserLogin, session: SessionDep):
     statement = select(User).where(User.email == user.email)
     db_user = session.exec(statement).first()
     if not db_user:
-        raise HTTPException(status_code=401, detail="There is no user with such email")
+        raise HTTPException(
+            status_code=401, detail="There is no user with such email")
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid password")
 
@@ -81,20 +84,21 @@ def login(user: UserLogin, session: SessionDep):
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer",
     }
 
 
 @account.post("/refresh")
-def refresh_access_token(request: RefreshToken, session: SessionDep):
+def refresh_access_token(
+    session: SessionDep, token: str = Depends(refresh_token_scheme)
+):
     try:
         payload = jwt.decode(
-            request.token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM]
-        )
+            token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
 
         if email is None:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token")
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -111,7 +115,7 @@ def refresh_access_token(request: RefreshToken, session: SessionDep):
         data={"sub": user.email}, expires_delta=access_token_expires
     )
 
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    return {"access_token": new_access_token}
 
 
 @account.post("/logout")
@@ -119,7 +123,7 @@ def logout(token: str = Depends(OAuth2PasswordBearer(tokenUrl="token"))):
     try:
         # Пытаемся декодировать токен
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return {"message": "Token is still valid", "email": payload.get("sub")}
+        return {"message": "Logged out successfully"}
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except JWTError:
