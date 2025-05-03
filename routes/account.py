@@ -8,6 +8,7 @@ from sqlmodel import select
 from config.database import SessionDep
 from config.jwt_config import *
 from models.user import User
+from schemas.refresh_token import RefreshToken
 from schemas.userCreate import UserCreate
 from schemas.userLogin import UserLogin
 
@@ -29,6 +30,15 @@ def create_access_token(data: dict, expires_delta: timedelta):
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(
+        to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -58,9 +68,46 @@ def login(user: UserLogin, session: SessionDep):
             status_code=401, detail="There is no user with such email")
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid password")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
         data={"sub": db_user.email}, expires_delta=access_token_expires
     )
+    refresh_token = create_refresh_token(
+        data={"sub": db_user.email}, expires_delta=refresh_token_expires)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@account.post("/refresh")
+def refresh_access_token(request: RefreshToken, session: SessionDep):
+    try:
+        payload = jwt.decode(
+            request.token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token")
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    stmt = select(User).where(User.email == email)
+    user = session.exec(stmt).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    new_access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires)
+
+    return {"access_token": new_access_token, "token_type": "bearer"}
