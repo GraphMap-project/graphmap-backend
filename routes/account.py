@@ -12,7 +12,7 @@ from models.user import User
 from schemas.userCreate import UserCreate
 from schemas.userLogin import UserLogin
 
-account = APIRouter()
+account = APIRouter(prefix="/account")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -58,7 +58,21 @@ def register(user: UserCreate, session: SessionDep):
     session.add(new_user)
     session.commit()
     session.refresh(new_user)
-    return {"message": "created successfully"}
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
+
+    access_token = create_access_token(
+        data={"sub": new_user.email}, expires_delta=access_token_expires
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": new_user.email}, expires_delta=refresh_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    }
 
 
 @account.post("/login")
@@ -110,12 +124,17 @@ def refresh_access_token(
         raise HTTPException(status_code=401, detail="User not found")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     new_access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
 
-    return {"access_token": new_access_token}
+    new_refresh_token = create_refresh_token(
+        data={"sub": user.email}, expires_delta=refresh_token_expires
+    )
+
+    return {"access_token": new_access_token, "refresh_token": new_refresh_token}
 
 
 @account.post("/logout")

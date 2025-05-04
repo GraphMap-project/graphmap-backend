@@ -1,6 +1,13 @@
 import re
+from typing import Dict
 
 from pydantic import BaseModel, EmailStr, ValidationError, field_validator
+
+
+class PasswordError(ValueError):
+    def __init__(self, errors: Dict[str, str]):
+        self.errors = errors
+        super().__init__("Password validation failed")
 
 
 class UserCreate(BaseModel):
@@ -30,7 +37,7 @@ class UserCreate(BaseModel):
             )
 
         if errors:
-            raise ValueError("Password validation failed", errors)
+            raise PasswordError(errors)
 
         return password
 
