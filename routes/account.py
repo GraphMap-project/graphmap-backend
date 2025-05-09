@@ -16,7 +16,8 @@ account = APIRouter(prefix="/account")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-refresh_token_scheme = OAuth2PasswordBearer(tokenUrl="refresh")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/account/login")
+refresh_token_scheme = OAuth2PasswordBearer(tokenUrl="/account/refresh")
 
 
 def hash_password(password):
@@ -42,6 +43,24 @@ def create_refresh_token(data: dict, expires_delta: timedelta):
     encoded_jwt = jwt.encode(
         to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def get_current_user(session: SessionDep, token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=401, detail="Invalid token payload")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    stmt = select(User).where(User.email == email)
+    user = session.exec(stmt).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
 
 
 @account.post("/register")
@@ -138,7 +157,7 @@ def refresh_access_token(
 
 
 @account.post("/logout")
-def logout(token: str = Depends(OAuth2PasswordBearer(tokenUrl="token"))):
+def logout(token: str = Depends(oauth2_scheme)):
     try:
         # Пытаемся декодировать токен
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -147,3 +166,11 @@ def logout(token: str = Depends(OAuth2PasswordBearer(tokenUrl="token"))):
         raise HTTPException(status_code=401, detail="Token has expired")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@account.get("/settings")
+def get_settings(current_user: User = Depends(get_current_user)):
+    return {
+        "email": current_user.email,
+        "name": current_user.name
+    }
