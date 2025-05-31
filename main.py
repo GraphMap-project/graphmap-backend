@@ -1,3 +1,5 @@
+import logging
+
 import osmnx as ox
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +16,13 @@ from utils.landmark_utils import (
 )
 from utils.utils import load_graph
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+
 custom_filter = (
     '["highway"~"motorway|trunk|primary|secondary|tertiary|'
     "motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|"
@@ -24,13 +33,13 @@ custom_filter = (
 
 graph_pickle_file = "detailed_ukraine_graph"
 REGIONAL_CENTERS = [
-    "Kyiv",
     "Lviv",
+    "Kyiv",
     "Odesa",
     "Kharkiv",
-    "Dnipro",
-    "Zaporizhzhia",
-    "Vinnytsia",
+    "Chernihiv",
+    "Donetsk",
+    "Kherson",
 ]
 
 
@@ -62,7 +71,7 @@ async def load_data_on_startup():
         except Exception as e:
             print(f"Error loading settlements: {e}")
 
-    print("Selecting landmarks...")
+    logger.info("Selecting landmarks...")
     city_names = [f"{city}, Ukraine" for city in REGIONAL_CENTERS]
     center_nodes = get_regional_center_nodes(app.state.graph, city_names)
 
@@ -70,9 +79,9 @@ async def load_data_on_startup():
         app.state.graph, regional_centers=center_nodes, k=5
     )
 
-    print("Preprocessing landmarks distances...")
+    logger.info("Preprocessing landmarks distances...")
     app.state.landmark_distances = preprocess_landmarks_distances(
         app.state.graph, app.state.landmarks
     )
 
-    print("Landmarks loaded and ready to use.")
+    logger.info("Landmarks loaded and ready to use.")

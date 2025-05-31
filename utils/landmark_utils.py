@@ -1,7 +1,14 @@
+import logging
 import random
 
 import networkx as nx
 import osmnx as ox
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 
 def get_regional_center_nodes(G, city_names):
@@ -14,7 +21,7 @@ def get_regional_center_nodes(G, city_names):
             node = ox.distance.nearest_nodes(G, X=lon, Y=lat)
             center_nodes.append(node)
         except Exception as e:
-            print(f"Error processing this city {city}: {e}")
+            logger.exception(f"Error processing this city {city}: {e}")
     return center_nodes
 
 
@@ -48,7 +55,9 @@ def select_global_landmarks(G, regional_centers, k=5):
                 dists[n] = min_dist
 
         if not dists:
-            print("No reachable regional centers found for the remaining landmarks.")
+            logger.exception(
+                "No reachable regional centers found for the remaining landmarks."
+            )
             break
 
         farthest = max(dists.items(), key=lambda x: x[1])[0]

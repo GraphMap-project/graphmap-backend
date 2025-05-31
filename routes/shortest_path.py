@@ -97,14 +97,14 @@ def get_shortest_path(request: RouteRequest, app: Request):
                     # если это обычный граф, а не мультиграф
                     total_distance += edge_data.get("length", 0)
 
-        plot_shortest_path(
-            G,
-            full_route,
-            points,
-            request.start_point,
-            request.end_point,
-            landmarks=app.app.state.landmarks,
-        )
+        # plot_shortest_path(
+        #     G,
+        #     full_route,
+        #     points,
+        #     request.start_point,
+        #     request.end_point,
+        #     landmarks=app.app.state.landmarks,
+        # )
 
         route_id = str(uuid.uuid4())
 
