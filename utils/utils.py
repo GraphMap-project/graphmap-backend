@@ -65,43 +65,47 @@ def extract_edge_geometries(G, path):
     return [(lat, lon) for lon, lat in coords]
 
 
-def plot_shortest_path(G, full_route, points, start_point, end_point):
+def plot_shortest_path(G, full_route, points, start_point, end_point, landmarks=None):
     fig, ax = ox.plot_graph_route(
         G,
         full_route,
-        route_linewidth=4,  # Толщина линии пути
-        node_size=0,  # Отключаем узлы
-        bgcolor="w",  # Цвет фона
-        route_color="r",  # Цвет маршрута
-        route_alpha=0.7,  # Прозрачность маршрута
-        show=False,  # Не показываем график
-        close=False,  # Не закрывать окно
+        route_linewidth=4,
+        node_size=0,
+        bgcolor="w",
+        route_color="r",
+        route_alpha=0.7,
+        show=False,
+        close=False,
     )
 
-    # Координаты всех точек (для визуализации на карте)
-    lons = [point[1] for point in points]  # Долготы (X)
-    lats = [point[0] for point in points]  # Широты (Y)
+    # Координаты всех точек маршрута (если нужно использовать отдельно)
+    lons = [point[1] for point in points]
+    lats = [point[0] for point in points]
 
-    # Добавляем точки маршрута (зелёные маркеры)
+    # Начальная и конечная точки (зелёные маркеры)
     ax.scatter(
-        start_point[1],
-        start_point[0],
-        c="g",  # Цвет маркеров
-        s=100,  # Размер маркеров
-        zorder=5,  # Порядок наложения
-        label="Route Points",
+        start_point[1], start_point[0], c="g", s=100, zorder=5, label="Start Point"
     )
 
-    ax.scatter(
-        end_point[1],
-        end_point[0],
-        c="g",  # Цвет маркеров
-        s=100,  # Размер маркеров
-        zorder=5,  # Порядок наложения
-        label="Route Points",
-    )
+    ax.scatter(end_point[1], end_point[0], c="g", s=100, zorder=5, label="End Point")
 
-    # Показываем легенду
+    # Если заданы опорные точки — отобразить их
+    if landmarks:
+        # landmarks — это список node_ids, получаем их координаты
+        landmark_coords = [(G.nodes[l]["y"], G.nodes[l]["x"]) for l in landmarks]
+        landmark_lats = [lat for lat, lon in landmark_coords]
+        landmark_lons = [lon for lat, lon in landmark_coords]
+
+        ax.scatter(
+            landmark_lons,
+            landmark_lats,
+            c="blue",
+            marker="*",
+            s=120,
+            zorder=6,
+            label="Landmarks",
+        )
+
     ax.legend()
     plt.show()
 
@@ -126,67 +130,13 @@ def filter_threats(G, threats):
     return G
 
 
-def auto_select_landmarks(G, start_node, end_node, num_landmarks=5):
-    """
-    Automatically selects landmarks for ALT algorithm based on the distance between
-    start and end points, with random offsets added.
-
-    Args:
-        G: NetworkX graph
-        start_node: Starting node ID
-        end_node: Ending node ID
-        num_landmarks: Number of landmarks to select
-
-    Returns:
-        Dictionary mapping landmark names to node IDs
-    """
-
-    # Get coordinates of start and end nodes
-    start_coords = (G.nodes[start_node]["y"], G.nodes[start_node]["x"])
-    end_coords = (G.nodes[end_node]["y"], G.nodes[end_node]["x"])
-
-    # Calculate coordinates for each landmark
-    landmarks = {}
-    for i in range(1, num_landmarks + 1):
-        # Interpolate between start and end
-        t = i / (num_landmarks + 2)
-        base_lat = start_coords[0] + t * (end_coords[0] - start_coords[0])
-        base_lon = start_coords[1] + t * (end_coords[1] - start_coords[1])
-
-        # Add random offset between -2 and 2 to both coordinates
-        random_lat_offset = np.random.uniform(-2, 2)
-        random_lon_offset = np.random.uniform(-2, 2)
-
-        lat = base_lat + random_lat_offset
-        lon = base_lon + random_lon_offset
-
-        # Find nearest node to this point
-        node = ox.nearest_nodes(G, lon, lat)
-        landmarks[f"landmark_{i}"] = node
-        print(f"landmark_{i} = {G.nodes[node]['y']}, {G.nodes[node]['x']}")
-
-    return landmarks
-
-
-def preprocess_landmarks(G, landmarks):
-    """Предварительно вычисляет расстояния от опорных точек до всех узлов."""
-    landmark_distances = {}
-    for city, node in landmarks.items():
-        landmark_distances[city] = nx.single_source_dijkstra_path_length(
-            G, node, weight="length"
-        )
-    return landmark_distances
-
-
 def alt_heuristic(u, v, landmarks, landmark_distances):
-    """Вычисляет ALT-эвристику для A*."""
-    return max(
-        abs(
-            landmark_distances[city].get(u, float("inf"))
-            - landmark_distances[city].get(v, float("inf"))
-        )
-        for city in landmarks
-    )
+    estimates = []
+    for landmark in landmarks:
+        dist_u = landmark_distances[landmark].get(u, 0)
+        dist_v = landmark_distances[landmark].get(v, 0)
+        estimates.append(abs(dist_u - dist_v))
+    return max(estimates) if estimates else 0
 
 
 async def get_settlements_along_route(G, route_nodes, sample_interval=10):

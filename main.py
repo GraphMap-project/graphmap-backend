@@ -7,6 +7,11 @@ from config.database import engine
 from routes.account import account
 from routes.shortest_path import shortest_path_route
 from utils.db_utils import load_settlements_from_geonames
+from utils.landmark_utils import (
+    get_regional_center_nodes,
+    preprocess_landmarks_distances,
+    select_global_landmarks,
+)
 from utils.utils import load_graph
 
 custom_filter = (
@@ -18,6 +23,16 @@ custom_filter = (
 )
 
 graph_pickle_file = "detailed_ukraine_graph"
+REGIONAL_CENTERS = [
+    "Kyiv",
+    "Lviv",
+    "Odesa",
+    "Kharkiv",
+    "Dnipro",
+    "Zaporizhzhia",
+    "Vinnytsia",
+]
+
 
 app = FastAPI(title="Graphmap Backend")
 
@@ -46,3 +61,18 @@ async def load_data_on_startup():
             load_settlements_from_geonames(session)
         except Exception as e:
             print(f"Error loading settlements: {e}")
+
+    print("Selecting landmarks...")
+    city_names = [f"{city}, Ukraine" for city in REGIONAL_CENTERS]
+    center_nodes = get_regional_center_nodes(app.state.graph, city_names)
+
+    app.state.landmarks = select_global_landmarks(
+        app.state.graph, regional_centers=center_nodes, k=5
+    )
+
+    print("Preprocessing landmarks distances...")
+    app.state.landmark_distances = preprocess_landmarks_distances(
+        app.state.graph, app.state.landmarks
+    )
+
+    print("Landmarks loaded and ready to use.")

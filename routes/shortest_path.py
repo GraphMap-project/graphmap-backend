@@ -9,13 +9,11 @@ from fastapi.responses import StreamingResponse
 from schemas.route_request import RouteRequest
 from utils.utils import (
     alt_heuristic,
-    auto_select_landmarks,
     build_route_file_content,
     extract_edge_geometries,
     filter_threats,
     get_settlements_along_route,
     plot_shortest_path,
-    preprocess_landmarks,
 )
 
 shortest_path_route = APIRouter()
@@ -57,10 +55,7 @@ def dijkstra_algorithm(G, u, v):
     return nx.shortest_path(G, u, v, weight="length")
 
 
-def alt_algorithm(G, u, v):
-    landmarks = auto_select_landmarks(G, u, v)
-    landmark_distances = preprocess_landmarks(G, landmarks)
-
+def alt_algorithm(G, u, v, landmarks, landmark_distances):
     return nx.astar_path(
         G,
         u,
@@ -79,7 +74,11 @@ def get_shortest_path(request: RouteRequest, app: Request):
             path_func = dijkstra_algorithm
 
         elif request.algorithm == "alt":
-            path_func = alt_algorithm
+            landmarks = app.app.state.landmarks
+            landmark_distances = app.app.state.landmark_distances
+
+            def path_func(G_, u_, v_):
+                return alt_algorithm(G_, u_, v_, landmarks, landmark_distances)
 
         full_route = build_full_route(G, nodes, points, path_func)
 
@@ -98,8 +97,14 @@ def get_shortest_path(request: RouteRequest, app: Request):
                     # если это обычный граф, а не мультиграф
                     total_distance += edge_data.get("length", 0)
 
-        # plot_shortest_path(
-        #     G, full_route, points, request.start_point, request.end_point)
+        plot_shortest_path(
+            G,
+            full_route,
+            points,
+            request.start_point,
+            request.end_point,
+            landmarks=app.app.state.landmarks,
+        )
 
         route_id = str(uuid.uuid4())
 
