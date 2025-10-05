@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 
 from models.settlement import Settlement
 from models.user import User
+from models.route import Route
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
