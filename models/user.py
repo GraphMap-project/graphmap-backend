@@ -1,7 +1,7 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class User(SQLModel, table=True):
