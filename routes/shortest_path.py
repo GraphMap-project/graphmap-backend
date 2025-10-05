@@ -5,6 +5,7 @@ import networkx as nx
 import osmnx as ox
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from sqlmodel import select
 
 from config.database import SessionDep
 from models.route import Route
@@ -172,6 +173,107 @@ def save_route(
             "name": new_route.name,
             "distance_km": round(new_route.total_distance / 1000, 2),
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@shortest_path_route.get("/routes")
+def get_user_routes(
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+):
+    """Get all saved routes for the authenticated user."""
+    try:
+        statement = select(Route).where(Route.user_id == current_user.id)
+
+        statement = statement.order_by(Route.created_at.desc())
+        routes = session.exec(statement).all()
+
+        return {
+            "count": len(routes),
+            "routes": [
+                {
+                    "id": str(route.id),
+                    "name": route.name,
+                    "algorithm": route.algorithm,
+                    "distance_km": round(route.total_distance / 1000, 2),
+                    "created_at": route.created_at.isoformat(),
+                }
+                for route in routes
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@shortest_path_route.get("/routes/{route_id}")
+def get_route_details(
+    route_id: str, session: SessionDep, current_user: User = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific saved route.
+    Includes full route coordinates for map visualization.
+    """
+
+    try:
+        try:
+            route_uuid = uuid.UUID(route_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid route ID format")
+
+        statement = select(Route).where(
+            Route.id == route_uuid, Route.user_id == current_user.id
+        )
+        route = session.exec(statement).first()
+
+        if not route:
+            raise HTTPException(status_code=404, detail="Route not found")
+
+        return {
+            "id": str(route.id),
+            "name": route.name,
+            "algorithm": route.algorithm,
+            "total_distance": route.total_distance,
+            "distance_km": round(route.total_distance / 1000, 2),
+            "route_coords": route.route_coords,
+            "start_point": route.start_point,
+            "end_point": route.end_point,
+            "intermediate_points": route.intermediate_points or [],
+            "created_at": route.created_at.isoformat(),
+            "updated_at": route.updated_at.isoformat() if route.updated_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@shortest_path_route.delete("/routes/{route_id}")
+def delete_route(
+    route_id: str, session: SessionDep, current_user: User = Depends(get_current_user)
+):
+    """Delete a saved route permanently."""
+    try:
+        try:
+            route_uuid = uuid.UUID(route_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid route ID format")
+
+        statement = select(Route).where(
+            Route.id == route_uuid, Route.user_id == current_user.id
+        )
+        route = session.exec(statement).first()
+
+        if not route:
+            raise HTTPException(status_code=404, detail="Route not found")
+
+        session.delete(route)
+        session.commit()
+
+        return {"message": "Route deleted successfully", "route_id": route_id}
     except HTTPException:
         raise
     except Exception as e:
