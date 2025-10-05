@@ -219,10 +219,7 @@ def get_route_details(
     """
 
     try:
-        try:
-            route_uuid = uuid.UUID(route_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid route ID format")
+        route_uuid = uuid.UUID(route_id)
 
         statement = select(Route).where(
             Route.id == route_uuid, Route.user_id == current_user.id
@@ -245,6 +242,8 @@ def get_route_details(
             "created_at": route.created_at.isoformat(),
             "updated_at": route.updated_at.isoformat() if route.updated_at else None,
         }
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid route ID format")
     except HTTPException:
         raise
     except Exception as e:
@@ -257,10 +256,7 @@ def delete_route(
 ):
     """Delete a saved route permanently."""
     try:
-        try:
-            route_uuid = uuid.UUID(route_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid route ID format")
+        route_uuid = uuid.UUID(route_id)
 
         statement = select(Route).where(
             Route.id == route_uuid, Route.user_id == current_user.id
@@ -274,6 +270,8 @@ def delete_route(
         session.commit()
 
         return {"message": "Route deleted successfully", "route_id": route_id}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid route ID format")
     except HTTPException:
         raise
     except Exception as e:
