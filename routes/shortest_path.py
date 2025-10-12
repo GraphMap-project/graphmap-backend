@@ -28,7 +28,8 @@ ROUTES_CACHE = {}
 
 
 def prepare_graph_and_nodes(request: RouteRequest, app):
-    points = [request.start_point] + request.intermediate_points + [request.end_point]
+    points = [request.start_point] + \
+        request.intermediate_points + [request.end_point]
 
     G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
@@ -67,7 +68,8 @@ def alt_algorithm(G, u, v, landmarks, landmark_distances):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(
+            u_, v_, landmarks, landmark_distances),
     )
 
 
@@ -152,6 +154,7 @@ def save_route(
         cached_route = ROUTES_CACHE[route_data.route_id]
 
         new_route = Route(
+            id=route_data.route_id,
             user_id=current_user.id,
             name=route_data.name,
             algorithm=cached_route["algorithm"],
