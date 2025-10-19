@@ -32,6 +32,13 @@ class Route(SQLModel, table=True):
         default=None, sa_column=Column(JSONB)
     )
 
+    # Point names
+    start_point_name: Optional[str] = Field(default=None, index=True)
+    end_point_name: Optional[str] = Field(default=None, index=True)
+    intermediate_point_names: Optional[List[str]] = Field(
+        default=None, sa_column=Column(JSONB)
+    )
+
     # Timestamps
     created_at: datetime = Field(
         default_factory=datetime.utcnow, nullable=False, index=True

@@ -123,6 +123,9 @@ def get_shortest_path(request: RouteRequest, app: Request):
             "end_point": request.end_point,
             "intermediate_points": request.intermediate_points,
             "threats": request.threats,
+            "start_point_name": request.start_point_name,
+            "end_point_name": request.end_point_name,
+            "intermediate_point_names": request.intermediate_point_names,
         }
 
         response = {
@@ -164,6 +167,9 @@ def save_route(
             end_point=cached_route["end_point"],
             intermediate_points=cached_route["intermediate_points"],
             threats=cached_route["threats"],
+            start_point_name=cached_route["start_point_name"],
+            end_point_name=cached_route["end_point_name"],
+            intermediate_point_names=cached_route["intermediate_point_names"],
         )
 
         session.add(new_route)
@@ -242,6 +248,9 @@ def get_route_details(
             "start_point": route.start_point,
             "end_point": route.end_point,
             "intermediate_points": route.intermediate_points or [],
+            "start_point_name": route.start_point_name,
+            "end_point_name": route.end_point_name,
+            "intermediate_point_names": route.intermediate_point_names or [],
             "created_at": route.created_at.isoformat(),
             "updated_at": route.updated_at.isoformat() if route.updated_at else None,
             "threats": route.threats or [],
