@@ -1,16 +1,19 @@
 import re
-from typing import Dict
 
 from pydantic import BaseModel, EmailStr, field_validator
 
 from validation.password_error import _validate_password
 
 
-class UserCreate(BaseModel):
+class PasswordResetRequest(BaseModel):
     email: EmailStr
-    password: str
 
-    @field_validator("password")
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
     @classmethod
     def validate_password(cls, password: str):
         return _validate_password(password)
