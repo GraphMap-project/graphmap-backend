@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
@@ -24,6 +24,11 @@ class Route(SQLModel, table=True):
     start_point: List[float] = Field(sa_column=Column(JSONB))
     end_point: List[float] = Field(sa_column=Column(JSONB))
     intermediate_points: Optional[List[List[float]]] = Field(
+        default=None, sa_column=Column(JSONB)
+    )
+
+    # Threats
+    threats: Optional[List[Dict[str, Any]]] = Field(
         default=None, sa_column=Column(JSONB)
     )
 

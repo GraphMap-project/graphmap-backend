@@ -28,8 +28,7 @@ ROUTES_CACHE = {}
 
 
 def prepare_graph_and_nodes(request: RouteRequest, app):
-    points = [request.start_point] + \
-        request.intermediate_points + [request.end_point]
+    points = [request.start_point] + request.intermediate_points + [request.end_point]
 
     G = app.state.graph  # G = load_graph(graphml_file, custom_filter)
 
@@ -68,8 +67,7 @@ def alt_algorithm(G, u, v, landmarks, landmark_distances):
         u,
         v,
         weight="length",
-        heuristic=lambda u_, v_: alt_heuristic(
-            u_, v_, landmarks, landmark_distances),
+        heuristic=lambda u_, v_: alt_heuristic(u_, v_, landmarks, landmark_distances),
     )
 
 
@@ -124,6 +122,7 @@ def get_shortest_path(request: RouteRequest, app: Request):
             "start_point": request.start_point,
             "end_point": request.end_point,
             "intermediate_points": request.intermediate_points,
+            "threats": request.threats,
         }
 
         response = {
@@ -164,6 +163,7 @@ def save_route(
             start_point=cached_route["start_point"],
             end_point=cached_route["end_point"],
             intermediate_points=cached_route["intermediate_points"],
+            threats=cached_route["threats"],
         )
 
         session.add(new_route)
@@ -244,6 +244,7 @@ def get_route_details(
             "intermediate_points": route.intermediate_points or [],
             "created_at": route.created_at.isoformat(),
             "updated_at": route.updated_at.isoformat() if route.updated_at else None,
+            "threats": route.threats or [],
         }
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid route ID format")
