@@ -13,9 +13,16 @@ from models.request_metrics import RequestMetrics
 class MetricsMiddleware(BaseHTTPMiddleware):
     """Middleware для автоматичного збору метрик часу відповіді"""
 
+    # Методи, для яких зберігаємо метрики
+    TRACKED_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Ігноруємо service endpoints
         if request.url.path in ["/docs", "/redoc", "/openapi.json", "/health"]:
+            return await call_next(request)
+
+        # Ігноруємо OPTIONS, HEAD та інші методи
+        if request.method not in self.TRACKED_METHODS:
             return await call_next(request)
 
         # Вимірюємо час
