@@ -8,6 +8,7 @@ from models.settlement import Settlement
 from models.user import User
 from models.route import Route
 from models.request_metrics import RequestMetrics
+from models.endpoint_metrics import EndpointMetrics
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

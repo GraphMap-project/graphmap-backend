@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
 from config.database import SessionDep
+from models.endpoint_metrics import EndpointMetrics
 from models.request_metrics import RequestMetrics
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
@@ -156,54 +157,30 @@ def get_response_time_timeline(
     }
 
 
-@admin_router.get("/metrics/response-time/endpoints")
-def get_endpoints_response_time(
-    period_hours: int = Query(default=24, ge=1, le=168),
+@admin_router.get("/metrics/endpoints-summary")
+def get_endpoints_summary(
     session: SessionDep = None,
 ):
-    """Час відповіді по ендпоінтам"""
-    time_threshold = datetime.utcnow() - timedelta(hours=period_hours)
+    """Зведена статистика по всіх ендпоінтах (без дублювання, з агрегованими даними)"""
 
-    stmt = (
-        select(
-            RequestMetrics.endpoint,
-            func.count(RequestMetrics.id).label("request_count"),
-            func.avg(RequestMetrics.response_time_ms).label("avg_response_time"),
-            func.min(RequestMetrics.response_time_ms).label("min_response_time"),
-            func.max(RequestMetrics.response_time_ms).label("max_response_time"),
-            func.count(RequestMetrics.id)
-            .filter(RequestMetrics.status_code >= 400)
-            .label("error_count"),
-        )
-        .where(RequestMetrics.timestamp >= time_threshold)
-        .group_by(RequestMetrics.endpoint)
-    )
-
-    results = session.exec(stmt).all()
-
-    endpoints_data = []
-    for row in results:
-        success_rate = (
-            ((row.request_count - row.error_count) / row.request_count * 100)
-            if row.request_count > 0
-            else 100
-        )
-
-        endpoints_data.append(
-            {
-                "endpoint": row.endpoint,
-                "request_count": row.request_count,
-                "avg_response_time_ms": round(row.avg_response_time, 2),
-                "min_response_time_ms": round(row.min_response_time, 2),
-                "max_response_time_ms": round(row.max_response_time, 2),
-                "error_count": row.error_count,
-                "success_rate_percent": round(success_rate, 2),
-            }
-        )
-
-    endpoints_data.sort(key=lambda x: x["request_count"], reverse=True)
+    stmt = select(EndpointMetrics).order_by(EndpointMetrics.total_requests.desc())
+    endpoints = session.exec(stmt).all()
 
     return {
-        "period_hours": period_hours,
-        "endpoints": endpoints_data,
+        "total_endpoints": len(endpoints),
+        "endpoints": [
+            {
+                "endpoint": ep.endpoint,
+                "method": ep.method,
+                "total_requests": ep.total_requests,
+                "avg_response_time_ms": round(ep.avg_response_time_ms, 2),
+                "min_response_time_ms": round(ep.min_response_time_ms, 2),
+                "max_response_time_ms": round(ep.max_response_time_ms, 2),
+                "error_count": ep.error_count,
+                "success_rate_percent": round(ep.success_rate_percent, 2),
+                "first_request_at": ep.first_request_at.isoformat(),
+                "last_request_at": ep.last_request_at.isoformat(),
+            }
+            for ep in endpoints
+        ],
     }
