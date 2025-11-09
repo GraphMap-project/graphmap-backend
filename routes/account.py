@@ -43,7 +43,8 @@ def create_refresh_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -52,7 +53,8 @@ def get_current_user(session: SessionDep, token: str = Depends(oauth2_scheme)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
         if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
+            raise HTTPException(
+                status_code=401, detail="Invalid token payload")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -110,7 +112,7 @@ def register(user: UserCreate, session: SessionDep):
 
     hashed_password = hash_password(user.password)
 
-    new_user = User(email=user.email, password=hashed_password)
+    new_user = User(email=user.email, password=hashed_password, role=user.role)
 
     session.add(new_user)
     session.commit()
@@ -137,7 +139,8 @@ def login(user: UserLogin, session: SessionDep):
     statement = select(User).where(User.email == user.email)
     db_user = session.exec(statement).first()
     if not db_user:
-        raise HTTPException(status_code=401, detail="There is no user with such email")
+        raise HTTPException(
+            status_code=401, detail="There is no user with such email")
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid password")
 
@@ -162,11 +165,13 @@ def refresh_access_token(
     session: SessionDep, token: str = Depends(refresh_token_scheme)
 ):
     try:
-        payload = jwt.decode(token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
 
         if email is None:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token")
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -205,7 +210,11 @@ def logout(token: str = Depends(oauth2_scheme)):
 
 @account.get("/settings")
 def get_settings(current_user: User = Depends(get_current_user)):
-    return {"email": current_user.email, "name": current_user.name}
+    return {
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+    }
 
 
 @account.post("/forgot-password")
@@ -238,7 +247,8 @@ def reset_password(reset_data: PasswordResetConfirm, session: SessionDep):
     """Reset password using the token from email"""
     try:
         # Decode and verify token
-        payload = jwt.decode(reset_data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(reset_data.token, SECRET_KEY,
+                             algorithms=[ALGORITHM])
         email = payload.get("sub")
         token_type = payload.get("type")
 

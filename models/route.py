@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column
+from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
@@ -45,10 +45,18 @@ class Route(SQLModel, table=True):
     )
 
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow, sa_column_kwargs={"onupdate": datetime.utcnow}
+        default_factory=datetime.utcnow, sa_column_kwargs={
+            "onupdate": datetime.utcnow}
     )
 
     # User relationship
     user_id: Optional[uuid.UUID] = Field(
-        default=None, foreign_key="user.id", index=True
+        default=None,
+        sa_column=Column(
+            ForeignKey("user.id", ondelete="CASCADE"),
+            index=True,
+            nullable=True
+        ),
     )
+
+    user: Optional["User"] = Relationship(back_populates="routes")
