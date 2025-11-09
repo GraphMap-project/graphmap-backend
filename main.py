@@ -10,6 +10,7 @@ from middleware.metrics_middleware import MetricsMiddleware
 from routes.account import account
 from routes.admin import admin_router
 from routes.shortest_path import shortest_path_route
+from routes.threats_router import threats_router
 from utils.db_utils import load_settlements_from_geonames
 from utils.landmark_utils import (
     get_regional_center_nodes,
@@ -63,6 +64,7 @@ ox.config(log_console=True, use_cache=True)
 app.include_router(shortest_path_route)
 app.include_router(account)
 app.include_router(admin_router)
+app.include_router(threats_router)
 
 
 @app.on_event("startup")

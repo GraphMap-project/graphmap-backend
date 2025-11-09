@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
@@ -53,7 +53,7 @@ class Route(SQLModel, table=True):
     user_id: Optional[uuid.UUID] = Field(
         default=None,
         sa_column=Column(
-            ForeignKey("user.id", ondelete="CASCADE"),
+            ForeignKey("user.id", ondelete="CASCADE", name="fk_route_user_id"),
             index=True,
             nullable=True
         ),
