@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
 from config.database import engine
+from middleware.metrics_middleware import MetricsMiddleware
 from routes.account import account
+from routes.admin import admin_router
 from routes.shortest_path import shortest_path_route
 from utils.db_utils import load_settlements_from_geonames
 from utils.landmark_utils import (
@@ -53,11 +55,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(MetricsMiddleware)
+
 
 ox.config(log_console=True, use_cache=True)
 
 app.include_router(shortest_path_route)
 app.include_router(account)
+app.include_router(admin_router)
 
 
 @app.on_event("startup")
