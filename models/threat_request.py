@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
+from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
 
@@ -29,7 +30,10 @@ class ThreatRequest(SQLModel, table=True):
     location: list[float] | None = Field(default=None, sa_column=Column(JSONB))
 
     # Reference for DELETE requests
-    threat_id: uuid.UUID | None = Field(default=None, foreign_key="threat.id")
+    threat_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(ForeignKey("threat.id", ondelete="CASCADE"), nullable=True),
+    )
 
     # Tracking
     requested_by: uuid.UUID = Field(foreign_key="user.id", index=True)
