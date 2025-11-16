@@ -79,16 +79,16 @@ async def load_data_on_startup():
             print(f"Error loading settlements: {e}")
 
     logger.info("Selecting landmarks...")
-    city_names = [f"{city}, Ukraine" for city in REGIONAL_CENTERS]
-    center_nodes = get_regional_center_nodes(app.state.graph, city_names)
+    # city_names = [f"{city}, Ukraine" for city in REGIONAL_CENTERS]
+    # center_nodes = get_regional_center_nodes(app.state.graph, city_names)
 
-    app.state.landmarks = select_global_landmarks(
-        app.state.graph, regional_centers=center_nodes, k=5
-    )
+    # app.state.landmarks = select_global_landmarks(
+    #     app.state.graph, regional_centers=center_nodes, k=5
+    # )
 
-    logger.info("Preprocessing landmarks distances...")
-    app.state.landmark_distances = preprocess_landmarks_distances(
-        app.state.graph, app.state.landmarks
-    )
+    # logger.info("Preprocessing landmarks distances...")
+    # app.state.landmark_distances = preprocess_landmarks_distances(
+    #     app.state.graph, app.state.landmarks
+    # )
 
     logger.info("Landmarks loaded and ready to use.")
