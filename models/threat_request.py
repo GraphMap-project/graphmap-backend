@@ -27,16 +27,18 @@ class ThreatRequest(SQLModel, table=True):
     # Threat data for CREATE requests
     threat_type: str | None = Field(default=None)
     description: str | None = Field(default=None)
-    location: list[float] | None = Field(default=None, sa_column=Column(JSONB))
+    location: list[dict] | None = Field(default=None, sa_column=Column(JSONB))
 
     # Reference for DELETE requests
     threat_id: uuid.UUID | None = Field(
         default=None,
-        sa_column=Column(ForeignKey("threat.id", ondelete="CASCADE"), nullable=True),
+        sa_column=Column(ForeignKey(
+            "threat.id", ondelete="CASCADE"), nullable=True),
     )
 
     # Tracking
     requested_by: uuid.UUID = Field(foreign_key="user.id", index=True)
     reviewed_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, nullable=False)
     reviewed_at: datetime | None = Field(default=None)

@@ -34,7 +34,7 @@ def create_threat(
         new_threat = Threat(
             type=threat_data.type,
             description=threat_data.description,
-            location=threat_data.location,
+            location=[loc.model_dump() for loc in threat_data.location],
             created_by=current_user.id,
         )
         session.add(new_threat)
@@ -48,7 +48,7 @@ def create_threat(
             action=RequestAction.CREATE,
             threat_type=threat_data.type,
             description=threat_data.description,
-            location=threat_data.location,
+            location=[loc.model_dump() for loc in threat_data.location],
             requested_by=current_user.id,
         )
         session.add(request)
@@ -98,9 +98,11 @@ def get_threat_requests(
             status_code=403, detail="Only threat-responsible users can view requests"
         )
 
-    query = select(ThreatRequest).where(ThreatRequest.status == RequestStatus.PENDING)
+    query = select(ThreatRequest).where(
+        ThreatRequest.status == RequestStatus.PENDING)
 
-    requests = session.exec(query.order_by(ThreatRequest.created_at.desc())).all()
+    requests = session.exec(query.order_by(
+        ThreatRequest.created_at.desc())).all()
     return requests
 
 
@@ -122,7 +124,8 @@ def approve_request(
         raise HTTPException(status_code=404, detail="Request not found")
 
     if request.status != RequestStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Request already processed")
+        raise HTTPException(
+            status_code=400, detail="Request already processed")
 
     request.status = RequestStatus.APPROVED
     request.reviewed_by = current_user.id
@@ -164,7 +167,8 @@ def decline_request(
         raise HTTPException(status_code=404, detail="Request not found")
 
     if request.status != RequestStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Request already processed")
+        raise HTTPException(
+            status_code=400, detail="Request already processed")
 
     request.status = RequestStatus.DECLINED
     request.reviewed_by = current_user.id
