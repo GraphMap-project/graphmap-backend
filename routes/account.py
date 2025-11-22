@@ -51,6 +51,7 @@ def get_current_user(session: SessionDep, token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
+        role = payload.get("role")
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token payload")
     except JWTError:
@@ -60,6 +61,9 @@ def get_current_user(session: SessionDep, token: str = Depends(oauth2_scheme)):
     user = session.exec(stmt).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+
+    if role and user.role != role:
+        raise HTTPException(status_code=401, detail="Role mismatch, please re-login")
 
     return user
 
@@ -110,7 +114,7 @@ def register(user: UserCreate, session: SessionDep):
 
     hashed_password = hash_password(user.password)
 
-    new_user = User(email=user.email, password=hashed_password)
+    new_user = User(email=user.email, password=hashed_password, role=user.role)
 
     session.add(new_user)
     session.commit()
@@ -120,10 +124,12 @@ def register(user: UserCreate, session: SessionDep):
     refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     access_token = create_access_token(
-        data={"sub": new_user.email}, expires_delta=access_token_expires
+        data={"sub": new_user.email, "role": new_user.role},
+        expires_delta=access_token_expires,
     )
     refresh_token = create_refresh_token(
-        data={"sub": new_user.email}, expires_delta=refresh_token_expires
+        data={"sub": new_user.email, "role": new_user.role},
+        expires_delta=refresh_token_expires,
     )
 
     return {
@@ -145,10 +151,12 @@ def login(user: UserLogin, session: SessionDep):
     refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     access_token = create_access_token(
-        data={"sub": db_user.email}, expires_delta=access_token_expires
+        data={"sub": db_user.email, "role": db_user.role},
+        expires_delta=access_token_expires,
     )
     refresh_token = create_refresh_token(
-        data={"sub": db_user.email}, expires_delta=refresh_token_expires
+        data={"sub": db_user.email, "role": db_user.role},
+        expires_delta=refresh_token_expires,
     )
 
     return {
@@ -181,11 +189,11 @@ def refresh_access_token(
     refresh_token_expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     new_access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
     )
 
     new_refresh_token = create_refresh_token(
-        data={"sub": user.email}, expires_delta=refresh_token_expires
+        data={"sub": user.email, "role": user.role}, expires_delta=refresh_token_expires
     )
 
     return {"access_token": new_access_token, "refresh_token": new_refresh_token}
@@ -205,7 +213,11 @@ def logout(token: str = Depends(oauth2_scheme)):
 
 @account.get("/settings")
 def get_settings(current_user: User = Depends(get_current_user)):
-    return {"email": current_user.email, "name": current_user.name}
+    return {
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+    }
 
 
 @account.post("/forgot-password")

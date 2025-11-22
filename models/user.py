@@ -9,3 +9,12 @@ class User(SQLModel, table=True):
     name: Optional[str]
     email: str
     password: str
+    role: str = Field(default="threat-responsible")
+
+    routes: List["Route"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )

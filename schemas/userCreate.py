@@ -9,6 +9,7 @@ from validation.password_error import _validate_password
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+    role: str
 
     @field_validator("password")
     @classmethod
