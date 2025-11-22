@@ -10,6 +10,9 @@ class User(SQLModel, table=True):
     email: str
     password: str
     role: str = Field(default="threat-responsible")
+    status: str = Field(default="active")
+    disabled_reason: Optional[str] = Field(default=None)
+    disabled_at: Optional[str] = Field(default=None)
 
     routes: List["Route"] = Relationship(
         back_populates="user",
