@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import osmnx as ox
+from matplotlib.patches import Polygon as MplPolygon
 from shapely.geometry import LineString, Point, Polygon
 from sqlmodel import Session
 
@@ -65,7 +66,16 @@ def extract_edge_geometries(G, path):
     return [(lat, lon) for lon, lat in coords]
 
 
-def plot_shortest_path(G, full_route, points, start_point, end_point, landmarks=None):
+def plot_shortest_path(
+    G,
+    full_route,
+    points,
+    start_point,
+    end_point,
+    intermediate_points=None,
+    landmarks=None,
+    threats=None,
+):
     fig, ax = ox.plot_graph_route(
         G,
         full_route,
@@ -78,20 +88,29 @@ def plot_shortest_path(G, full_route, points, start_point, end_point, landmarks=
         close=False,
     )
 
-    # Координаты всех точек маршрута (если нужно использовать отдельно)
-    lons = [point[1] for point in points]
-    lats = [point[0] for point in points]
-
-    # Начальная и конечная точки (зелёные маркеры)
+    # 1. Plot Start & End Points (Green)
+    # Note: ax.scatter expects (x, y) which corresponds to (Longitude, Latitude)
     ax.scatter(
         start_point[1], start_point[0], c="g", s=100, zorder=5, label="Start Point"
     )
-
     ax.scatter(end_point[1], end_point[0], c="g", s=100, zorder=5, label="End Point")
 
-    # Если заданы опорные точки — отобразить их
+    # 2. Plot Intermediate Points (Orange) - NEW
+    if intermediate_points:
+        int_lons = [p[1] for p in intermediate_points]
+        int_lats = [p[0] for p in intermediate_points]
+        ax.scatter(
+            int_lons,
+            int_lats,
+            c="orange",
+            s=80,
+            zorder=5,
+            marker="o",
+            label="Intermediate Points",
+        )
+
+    # 3. Plot Landmarks (Blue Stars)
     if landmarks:
-        # landmarks — это список node_ids, получаем их координаты
         landmark_coords = [(G.nodes[l]["y"], G.nodes[l]["x"]) for l in landmarks]
         landmark_lats = [lat for lat, lon in landmark_coords]
         landmark_lons = [lon for lat, lon in landmark_coords]
@@ -106,7 +125,36 @@ def plot_shortest_path(G, full_route, points, start_point, end_point, landmarks=
             label="Landmarks",
         )
 
-    ax.legend()
+    # 4. Plot Threats (Red Zones/Lines) - NEW
+    if threats:
+        for i, threat in enumerate(threats):
+            # Safety check: ensure threat is not empty
+            if not threat:
+                continue
+
+            # Handle the specific list structure you provided
+            # We assume 'threat' is a list of [lat, lon] points.
+            # Matplotlib requires (x, y) which is (lon, lat).
+
+            try:
+                # Swap [lat, lon] -> (lon, lat)
+                coord_sequence = [(p[1], p[0]) for p in threat]
+
+                # Create the polygon patch
+                poly_patch = MplPolygon(
+                    coord_sequence,
+                    closed=True,  # Automatically close the shape
+                    edgecolor="red",
+                    facecolor="red",
+                    alpha=0.3,  # Semi-transparent to see roads underneath
+                    zorder=4,
+                    label="Threat Area" if i == 0 else "",  # Label only the first one
+                )
+                ax.add_patch(poly_patch)
+            except (IndexError, TypeError):
+                print(f"Skipping malformed threat at index {i}: {threat}")
+
+    ax.legend(loc="upper right")
     plt.show()
 
 
