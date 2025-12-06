@@ -40,7 +40,7 @@ def create_threat(
         session.add(new_threat)
         session.commit()
         session.refresh(new_threat)
-        return {"message": "Threat created"}
+        return {"message": "Threat created", "threat_id": str(new_threat.id)}
 
     # Military users create a creation request
     if current_user.role == Role.MILITARY.value:
@@ -98,11 +98,9 @@ def get_threat_requests(
             status_code=403, detail="Only threat-responsible users can view requests"
         )
 
-    query = select(ThreatRequest).where(
-        ThreatRequest.status == RequestStatus.PENDING)
+    query = select(ThreatRequest).where(ThreatRequest.status == RequestStatus.PENDING)
 
-    requests = session.exec(query.order_by(
-        ThreatRequest.created_at.desc())).all()
+    requests = session.exec(query.order_by(ThreatRequest.created_at.desc())).all()
     return requests
 
 
@@ -124,8 +122,7 @@ def approve_request(
         raise HTTPException(status_code=404, detail="Request not found")
 
     if request.status != RequestStatus.PENDING:
-        raise HTTPException(
-            status_code=400, detail="Request already processed")
+        raise HTTPException(status_code=400, detail="Request already processed")
 
     request.status = RequestStatus.APPROVED
     request.reviewed_by = current_user.id
@@ -167,8 +164,7 @@ def decline_request(
         raise HTTPException(status_code=404, detail="Request not found")
 
     if request.status != RequestStatus.PENDING:
-        raise HTTPException(
-            status_code=400, detail="Request already processed")
+        raise HTTPException(status_code=400, detail="Request already processed")
 
     request.status = RequestStatus.DECLINED
     request.reviewed_by = current_user.id
